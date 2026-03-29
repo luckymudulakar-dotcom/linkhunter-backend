@@ -14,6 +14,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SCRAPER_API_KEY = "a0e23f40c25092d8d5f76d85a667d11d"
+
 class ScrapeRequest(BaseModel):
     url: str
     keywords: List[str]
@@ -25,27 +27,15 @@ def health():
 @app.post("/scrape")
 async def scrape(req: ScrapeRequest):
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Accept-Encoding": "gzip, deflate, br",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1",
-            "Cache-Control": "max-age=0",
-        }
+        scraper_url = f"http://api.scraperapi.com?api_key={SCRAPER_API_KEY}&url={req.url}"
 
-        async with httpx.AsyncClient(
-            timeout=30,
-            follow_redirects=True,
-            headers=headers
-        ) as client:
-            response = await client.get(req.url)
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.get(scraper_url)
 
         soup = BeautifulSoup(response.text, "html.parser")
         all_links = soup.find_all("a", href=True)
 
-        base_url = str(response.url).rstrip("/")
+        base_url = req.url.rstrip("/")
         seen = set()
         matched = []
 
@@ -91,4 +81,3 @@ async def scrape(req: ScrapeRequest):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
-      
